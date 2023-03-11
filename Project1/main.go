@@ -194,6 +194,10 @@ func SJFSchedule(w io.Writer, title string, inputProcesses []Process) {
 	var time int64 = 0
 	var timeSlot int64 = 0 //The current running process's TimeSlice index in gantt
 	var ganttStart = func(pid int){
+		if((timeSlot > 0) && gantt[timeSlot-1].PID == processes[pid].ProcessID){
+			timeSlot--
+			return
+		}
 		gantt = append(gantt, TimeSlice{
 			PID:	processes[pid].ProcessID,
 			Start:	time,
@@ -296,6 +300,10 @@ func SJFPrioritySchedule(w io.Writer, title string, inputProcesses []Process) {
 	var time int64 = 0
 	var timeSlot int64 = 0 //The current running process's TimeSlice index in gantt
 	var ganttStart = func(pid int){
+		if((timeSlot > 0) && gantt[timeSlot-1].PID == processes[pid].ProcessID){
+			timeSlot--
+			return
+		}
 		gantt = append(gantt, TimeSlice{
 			PID:	processes[pid].ProcessID,
 			Start:	time,
@@ -420,6 +428,10 @@ func RRSchedule(w io.Writer, title string, inputProcesses []Process) {
 	var MAX_SIMULATION_TIME int64 = totalWork + lastArrived + timeQuantum + 1;
 
 	var ganttStart = func(pid int64){
+		if((timeSlot > 0) && gantt[timeSlot-1].PID == pid){
+			timeSlot--
+			return
+		}
 		gantt = append(gantt, TimeSlice{
 			PID:	pid,
 			Start:	time,
@@ -453,8 +465,7 @@ func RRSchedule(w io.Writer, title string, inputProcesses []Process) {
 		}
 
 		for (len(processes) >= 1) && (processes[0].ArrivalTime <= time){
-			//fmt.Fprintf(w, "Process added to waiting queue: %d, burst %d\n", processes[0].ProcessID, processes[0].BurstDuration)
-			waitingQueue = append(waitingQueue, processes[0])
+			waitingQueue = append([]Process{processes[0]}, waitingQueue...)
 			processes = processes[1:]
 		}
 		if(len(waitingQueue) <= 0){
