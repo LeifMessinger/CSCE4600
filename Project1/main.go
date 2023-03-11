@@ -89,7 +89,7 @@ func FCFSSchedule(w io.Writer, title string, processes []Process) {
 		lastCompletion  float64
 		waitingTime     int64
 		schedule        = make([][]string, len(processes))
-		gantt           = make([]TimeSlice, 0)
+                gantt           = make([]TimeSlice, 0)
 	)
 	for i := range processes {
 		if processes[i].ArrivalTime > 0 {
@@ -133,6 +133,52 @@ func FCFSSchedule(w io.Writer, title string, processes []Process) {
 	outputSchedule(w, schedule, aveWait, aveTurnaround, aveThroughput)
 }
 
+func calculateAndPrintStats(w io.Writer, processes []Process, gantt []TimeSlice){
+	var (
+                totalWait       float64
+                totalTurnaround float64
+                lastCompletion  float64
+                schedule        = make([][]string, len(processes))
+        )
+	for i := range processes {
+		var computationTime int64 = 0
+		var waitingTime int64 = 0
+		var finishTime int64 = 0
+		for j := range gantt {
+			if(gantt[j].PID == processes[i].ProcessID){
+				computationTime += gantt[j].Stop - gantt[j].Start
+			}else{
+				waitingTime += gantt[j].Stop - gantt[j].Start
+			}
+			if(computationTime >= processes[i].BurstDuration){
+				finishTime = gantt[j].Stop
+				break
+			}
+		}
+		schedule[i] = []string{
+			fmt.Sprint(processes[i].ProcessID),
+			fmt.Sprint(processes[i].Priority),
+			fmt.Sprint(processes[i].BurstDuration),
+			fmt.Sprint(processes[i].ArrivalTime),
+			fmt.Sprint(waitingTime),
+			fmt.Sprint(waitingTime + computationTime),
+			fmt.Sprint(finishTime),
+		}
+		totalWait += float64(waitingTime)
+		totalTurnaround += float64(waitingTime + computationTime)
+		if(float64(finishTime) > lastCompletion){
+			lastCompletion = float64(finishTime)
+		}
+	}
+
+	count := float64(len(processes))
+        aveWait := totalWait / count
+        aveTurnaround := totalTurnaround / count
+        aveThroughput := count / lastCompletion
+
+	outputGantt(w, gantt)
+	outputSchedule(w, schedule, aveWait, aveTurnaround, aveThroughput)
+}
 
 //Plan: do my scheduling here, and make the FCFS code calculate all the statistics
 func SJFSchedule(w io.Writer, title string, inputProcesses []Process) {
@@ -233,7 +279,7 @@ func SJFSchedule(w io.Writer, title string, inputProcesses []Process) {
 	}
 
 	outputTitle(w, title)
-	outputGantt(w, gantt)
+	calculateAndPrintStats(w, processes, gantt);
 }
 
 //func SJFPrioritySchedule(w io.Writer, title string, processes []Process) { }
