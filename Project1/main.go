@@ -383,7 +383,6 @@ func SJFPrioritySchedule(w io.Writer, title string, inputProcesses []Process) {
 				break
 			}else{
 				running = waitingQueueRemove()
-				fmt.Printf("%d\n", running)
 				ganttSwap(running)
 			}
 		}
