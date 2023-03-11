@@ -40,7 +40,7 @@ func main() {
 
 	SJFPrioritySchedule(os.Stdout, "Priority", processes)
 
-	//RRSchedule(os.Stdout, "Round-robin", processes)
+	RRSchedule(os.Stdout, "Round-robin", processes)
 }
 
 func openProcessingFile(args ...string) (*os.File, func(), error) {
@@ -278,7 +278,7 @@ func SJFSchedule(w io.Writer, title string, inputProcesses []Process) {
 	}
 
 	outputTitle(w, title)
-	calculateAndPrintStats(w, processes, gantt);
+	calculateAndPrintStats(w, inputProcesses, gantt);
 }
 
 //A ton of copied code from above, avert your eyes children
@@ -389,10 +389,96 @@ func SJFPrioritySchedule(w io.Writer, title string, inputProcesses []Process) {
 	}
 
 	outputTitle(w, title)
-	calculateAndPrintStats(w, processes, gantt);
+	calculateAndPrintStats(w, inputProcesses, gantt);
 }
 
-//func RRSchedule(w io.Writer, title string, processes []Process) { }
+func RRSchedule(w io.Writer, title string, inputProcesses []Process) {
+
+	processes := inputProcesses
+
+	var gantt = make([]TimeSlice, 0)
+	var time int64 = 0
+	var timeQuantum int64 = 2	//Shout out to this youtube lecture https://www.youtube.com/watch?v=TxjIlNYRZ5M
+	var timeSlot int64 = 0 //The current running process's TimeSlice index in gantt
+
+	var totalWork int64 = 0;
+	var lastArrived int64 = 0;
+	for i := range processes {
+		totalWork += processes[i].BurstDuration;
+		if(processes[i].ArrivalTime > lastArrived){
+			lastArrived = processes[i].ArrivalTime;
+		}
+	}
+
+	var MAX_SIMULATION_TIME int64 = totalWork + lastArrived + timeQuantum + 1;
+
+	var ganttStart = func(pid int64){
+		gantt = append(gantt, TimeSlice{
+			PID:	pid,
+			Start:	time,
+			Stop:	time,	//Temporary value
+		})
+	}
+	var ganttStop = func(){
+		gantt[timeSlot].Stop = time
+		timeSlot++
+	}
+	//Not needed here
+	/*var ganttSwap = func(pid int){
+		ganttStop()
+		ganttStart(pid)
+	}*/
+
+	//Waiting queue just holds the index of the process in the processes array
+	var waitingQueue = make([]Process, 0)
+	var waitingQueueAdd = func(process Process){
+		waitingQueue = append(waitingQueue, process)
+	}
+	var waitingQueueRemove = func() Process{
+		var process Process = waitingQueue[0]
+		waitingQueue = waitingQueue[1:]
+		return process
+	}
+	//We can assume processes are sorted by arrival time
+	for true {
+		if(time >= MAX_SIMULATION_TIME){
+			log.Fatalf("Round robin took longer than the maximum allowed time.");
+		}
+
+		for (len(processes) >= 1) && (processes[0].ArrivalTime <= time){
+			waitingQueue = append(waitingQueue, processes[0])
+			processes = processes[1:]
+		}
+		if(len(waitingQueue) <= 0){
+			if(len(processes) >= 1){
+				time = processes[0].ArrivalTime
+				continue
+			}
+			break;
+		}
+		var running Process = waitingQueueRemove()
+		ganttStart(running.ProcessID);
+
+		if(running.BurstDuration < timeQuantum){
+			time += running.BurstDuration;
+			running.BurstDuration = 0
+		}else{
+			time += timeQuantum
+			running.BurstDuration -= timeQuantum
+		}
+
+		ganttStop();
+
+		if(running.BurstDuration <= 0){
+			//The top of the loop fast forwards to the next process anyways
+			continue
+		}else{
+			waitingQueueAdd(running)
+		}
+	}
+	outputTitle(w, title)
+	calculateAndPrintStats(w, inputProcesses, gantt);
+}
 
 //endregion
 
