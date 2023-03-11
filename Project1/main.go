@@ -81,7 +81,9 @@ type (
 // • an output writer
 // • a title for the chart
 // • a slice of processes
-func FCFSSchedule(w io.Writer, title string, processes []Process) {
+func FCFSSchedule(w io.Writer, title string, inputProcesses []Process) {
+	var processes []Process = make([]Process, len(inputProcesses))
+	copy(processes, inputProcesses)
 	var (
 		serviceTime     int64
 		totalWait       float64
@@ -133,7 +135,9 @@ func FCFSSchedule(w io.Writer, title string, processes []Process) {
 	outputSchedule(w, schedule, aveWait, aveTurnaround, aveThroughput)
 }
 
-func calculateAndPrintStats(w io.Writer, processes []Process, gantt []TimeSlice){
+func calculateAndPrintStats(w io.Writer, inputProcesses []Process, gantt []TimeSlice){
+	var processes []Process = make([]Process, len(inputProcesses))
+	copy(processes, inputProcesses)
 	var (
                 totalWait       float64
                 totalTurnaround float64
@@ -183,7 +187,8 @@ func calculateAndPrintStats(w io.Writer, processes []Process, gantt []TimeSlice)
 //Plan: do my scheduling here, and make the FCFS code calculate all the statistics
 func SJFSchedule(w io.Writer, title string, inputProcesses []Process) {
 
-	processes := inputProcesses
+	var processes []Process = make([]Process, len(inputProcesses))
+	copy(processes, inputProcesses)
 
 	var gantt = make([]TimeSlice, 0)
 	var time int64 = 0
@@ -284,7 +289,8 @@ func SJFSchedule(w io.Writer, title string, inputProcesses []Process) {
 //A ton of copied code from above, avert your eyes children
 func SJFPrioritySchedule(w io.Writer, title string, inputProcesses []Process) {
 
-	processes := inputProcesses
+	var processes []Process = make([]Process, len(inputProcesses))
+	copy(processes, inputProcesses)
 
 	var gantt = make([]TimeSlice, 0)
 	var time int64 = 0
@@ -394,7 +400,8 @@ func SJFPrioritySchedule(w io.Writer, title string, inputProcesses []Process) {
 
 func RRSchedule(w io.Writer, title string, inputProcesses []Process) {
 
-	processes := inputProcesses
+	var processes []Process = make([]Process, len(inputProcesses))
+	copy(processes, inputProcesses)
 
 	var gantt = make([]TimeSlice, 0)
 	var time int64 = 0
@@ -446,6 +453,7 @@ func RRSchedule(w io.Writer, title string, inputProcesses []Process) {
 		}
 
 		for (len(processes) >= 1) && (processes[0].ArrivalTime <= time){
+			//fmt.Fprintf(w, "Process added to waiting queue: %d, burst %d\n", processes[0].ProcessID, processes[0].BurstDuration)
 			waitingQueue = append(waitingQueue, processes[0])
 			processes = processes[1:]
 		}
