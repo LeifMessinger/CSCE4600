@@ -38,7 +38,7 @@ func main() {
 
 	SJFSchedule(os.Stdout, "Shortest-job-first", processes)
 
-	//SJFPrioritySchedule(os.Stdout, "Priority", processes)
+	SJFPrioritySchedule(os.Stdout, "Priority", processes)
 
 	//RRSchedule(os.Stdout, "Round-robin", processes)
 }
@@ -272,7 +272,6 @@ func SJFSchedule(w io.Writer, title string, inputProcesses []Process) {
 				break
 			}else{
 				running = waitingQueueRemove()
-				fmt.Printf("%d\n", running)
 				ganttSwap(running)
 			}
 		}
@@ -282,7 +281,117 @@ func SJFSchedule(w io.Writer, title string, inputProcesses []Process) {
 	calculateAndPrintStats(w, processes, gantt);
 }
 
-//func SJFPrioritySchedule(w io.Writer, title string, processes []Process) { }
+//A ton of copied code from above, avert your eyes children
+func SJFPrioritySchedule(w io.Writer, title string, inputProcesses []Process) {
+
+	processes := inputProcesses
+
+	var gantt = make([]TimeSlice, 0)
+	var time int64 = 0
+	var timeSlot int64 = 0 //The current running process's TimeSlice index in gantt
+	var ganttStart = func(pid int){
+		gantt = append(gantt, TimeSlice{
+			PID:	processes[pid].ProcessID,
+			Start:	time,
+			Stop:	time,	//Temporary value
+		})
+	}
+	var ganttStop = func(){
+		gantt[timeSlot].Stop = time
+		timeSlot++
+	}
+	var ganttSwap = func(pid int){
+		ganttStop()
+		ganttStart(pid)
+	}
+
+	//Waiting queue just holds the index of the process in the processes array
+	var waitingQueue = make([]int, 0)
+	var waitingQueueAdd = func(pid int){
+		waitingQueue = append(waitingQueue, pid)
+	}
+	var waitingQueueRemove = func() int{
+		var pid int = waitingQueue[0]
+		waitingQueue = waitingQueue[1:]
+		return pid
+	}
+
+	//We can assume processes are sorted by arrival time
+	var running int = -1
+	for i := 0; i < len(processes); i++ {
+		//This does it for i too
+		//This is to ensure that processess that appear at the same time are evaluated together
+		for arrivalTime := processes[i].ArrivalTime; (i < len(processes)) && (processes[i].ArrivalTime == arrivalTime); i++ {
+			waitingQueue = append(waitingQueue, i)
+		}
+		i--
+
+		//Should really use insertion sort here, but this is too easy
+		//Sort the items in the waiting queue by their burstDuration
+
+		var compare = func (a, b int) bool{
+			if((processes[a].BurstDuration) == (processes[b].BurstDuration)){
+				return ((processes[a].Priority) < (processes[b].Priority))
+			}else{
+				return ((processes[a].BurstDuration) < (processes[b].BurstDuration))
+			}
+		}
+
+		sort.Slice(waitingQueue[:], func(a, b int) bool{
+			return compare(waitingQueue[a], waitingQueue[b])
+		})
+
+		var SHORTEST_JOB_IN_THE_QUEUE int = waitingQueue[0]
+
+		var PREVIOUS_TIME int64 = time
+
+		//This way, on i == 0, TIME_ELAPSED == processes[i].ArrivalTime
+		var TIME_ELAPSED int64 = processes[i].ArrivalTime - PREVIOUS_TIME
+
+		time += TIME_ELAPSED
+
+		//Elapse time of running program
+		if (running >= 0){
+			processes[running].BurstDuration -= TIME_ELAPSED
+
+			//If running is not less than the SHORTEST_JOB_IN_THE_QUEUE
+			if(!compare(running, SHORTEST_JOB_IN_THE_QUEUE)){
+				waitingQueueAdd(running)
+				running = waitingQueueRemove()
+				ganttSwap(running)
+			}
+
+			//In theory, this shouldn't happen
+			//We shouldn't have a burst duration of 0 after a fast forward because we let the process finish processing before we fast forward
+			//if processes[running].BurstDuration <= 0 {
+				//Make note of the end time in gantt
+			//}
+		}else{
+			running = waitingQueueRemove()
+			ganttStart(running)
+		}
+
+		//If the current process won't get preempted by the next arriving process
+		//The greater than in the if statement means that if the process gets preempted, there will be at least one burst time left in the process when that new process arrives
+		//If BurstDuration + time == process[i+1].ArrivalTime, then the next TIME_ELAPSED will be 0
+		for !((i + 1) < len(processes) && (processes[running].BurstDuration) + time > processes[i+1].ArrivalTime) {
+			//We wait it out before we fast forward
+			time += processes[running].BurstDuration
+			if (len(waitingQueue) <= 0){
+				running = -1
+				ganttStop()
+				break
+			}else{
+				running = waitingQueueRemove()
+				fmt.Printf("%d\n", running)
+				ganttSwap(running)
+			}
+		}
+	}
+
+	outputTitle(w, title)
+	calculateAndPrintStats(w, processes, gantt);
+}
 
 //func RRSchedule(w io.Writer, title string, processes []Process) { }
 
